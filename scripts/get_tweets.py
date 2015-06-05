@@ -18,8 +18,11 @@ import logging
 logging.basicConfig(level=logging.WARNING)
 import psycopg2 as mdb
 
+
 bounding_boxes = { 'usa': (-125.6791025,25.4180700649,-66.885417,
                            49.3284551525) }
+
+
 all_sites = list(itertools.chain.from_iterable(
     k for k in bounding_boxes.itervalues()))
 
@@ -47,39 +50,67 @@ def translate_date(date):
     day = re.sub(r".*([0-9]{4})$", r"\1", date)
     return ""
 
-def ingest_tweet(status, con):
-    # record tweet in tweets db (represented by con)
+tweets = []
+#reply_tweets = []
+
+def record_tweets(statuses, cur):
+    cur.execute("SELECT tweet_id FROM tweets")
+    tweet_ids = set(zip(*cur.fetchall())[0])
+    statuses = [st for st in statuses if st.id_str not in tweet_ids]
     
+    # check for duplicates w/i stream
+    new_ids = [st.id_str for st in statuses]
+    status_dict = dict()
+    for id_str in set(new_ids):
+        status = [st for st in statuses if st.id_str == id_str][0]
+        status_dict[id_str] = status
+    statuses = status_dict.itervalues()
+    
+    query = (u"INSERT INTO tweets (tweet_id, text, created_at,"
+            u"user_id, language, lat, long, in_reply_to_tweet_id) VALUES ") + \
+            u", ".join([u"('{}','{}','{}','{}','{}','{}','{}','{}')".format(
+            tw.id_str,
+            normalize_text(tw.text),
+            tw.created_at,
+            tw.user.id_str,
+            tw.lang,
+            tw.coordinates['coordinates'][0],
+            tw.coordinates['coordinates'][1],
+            tw.in_reply_to_tweet_id) for tw in statuses])
+    logging.debug(query)
+    cur.execute(query)
+
+    
+
+def ingest_tweet(status, con):
+    global tweets
+    #global reply_tweets
+    # record tweet in tweets db (represented by con)
     with con.cursor() as cur:
-        if getattr(status, "retweeted_status", None) is not None or getattr(status, 'coordinates', None) is None:
+        if getattr(status, "retweeted_status", None) is not None:
             return
-        logging.debug(status.id_str)
-        in_reply_to_tweet_id = getattr(status,'in_reply_to_status_id_str','')
-        query = (u"INSERT INTO tweets (tweet_id, text, created_at,"
-                    u"user_id, language, lat, long, in_reply_to_tweet_id) "
-                    u" VALUES ('{}','{}','{}','{}','{}','{}','{}','{}')"
-                    ).format(
-                    status.id_str,
-                    normalize_text(status.text),
-                    status.created_at,
-                    status.user.id_str,
-                    status.lang,
-                    status.coordinates['coordinates'][0],
-                    status.coordinates['coordinates'][1],
-                    in_reply_to_tweet_id)
-        logging.debug(query)
-        cur.execute(query)
+        setattr(status, 'in_reply_to_tweet_id', getattr(status,'in_reply_to_status_id_str',''))
+        tweets.append(status)
+        #if status.in_reply_to_tweet_id != '':
+            #reply_tweets.append(status)
+
+        if len(tweets) > 40:
+            record_tweets(tweets, cur)
+            tweets = []
     con.commit()
+    
+    # append tweets to queue that have been replied to
     #try:
         #with con.cursor() as cur:
             #cur.execute(("SELECT tweet_id FROM tweets WHERE"
-                              #"tweet_id={}").format(status.in_reply_to_id_str))
+                         #"tweet_id={}").format(status.in_reply_to_id_str))
                                 
-            #if status.in_reply_to_id_str != "" and in_reply_to_recorded is not None
-            
-    ## retrieve in_reply_to tweets
+            #if status.in_reply_to_tweet_id != "" and in_reply_to_recorded is not None:
+                #reply_tweets.append(status.in_reply_to_tweet_id)
+    #except:
+        #logging.debug("No reply", exc_info=True)
 
- 
+
 def do_ingestion(q):
     with connect_db() as con:
         while True:
@@ -130,12 +161,22 @@ class MyStreamListener(tweepy.StreamListener):
         return False
 
 def main():
+    #global reply_tweets
     api = get_api()
     us_listener = MyStreamListener()
     us_stream = tweepy.Stream(auth=api.auth, listener=us_listener)
     try:
         us_stream.filter(locations=all_sites, async=True)
         while us_stream.running and us_listener.is_running():
+            #if len(reply_tweets) > 10:
+                #with connect_db() as con:
+                    #with con.cursor() as cur:
+                        #statuses_100 = reply_tweets[0:100]
+                        #reply_tweets = reply_tweets[100:]
+                        #statuses_100 = [st for st in statuses_100]
+                        #reply_objects = api.statuses_lookup(statuses_100)
+                        #record_tweets(reply_objects, cur)
+                    #con.commit()
             time.sleep(0.1)
     finally:
         us_stream.disconnect()
