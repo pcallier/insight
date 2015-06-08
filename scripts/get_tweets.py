@@ -45,7 +45,6 @@ def translate_date(date):
     return ""
 
 tweets = []
-#reply_tweets = []
 
 def record_tweets(statuses, cur, con):
     cur.execute("SELECT tweet_id FROM tweets")
@@ -89,7 +88,6 @@ def record_tweets(statuses, cur, con):
 
 def ingest_tweet(status, con):
     global tweets
-    #global reply_tweets
     # record tweet in tweets db (represented by con)
     with con.cursor() as cur:
         if getattr(status, "retweeted_status", None) is not None:
@@ -103,17 +101,7 @@ def ingest_tweet(status, con):
             record_tweets(tweets, cur, con)
             tweets = []
     con.commit()
-    
-    # append tweets to queue that have been replied to
-    #try:
-        #with con.cursor() as cur:
-            #cur.execute(("SELECT tweet_id FROM tweets WHERE"
-                         #"tweet_id={}").format(status.in_reply_to_id_str))
-                                
-            #if status.in_reply_to_tweet_id != "" and in_reply_to_recorded is not None:
-                #reply_tweets.append(status.in_reply_to_tweet_id)
-    #except:
-        #logging.debug("No reply", exc_info=True)
+
 
 
 def do_ingestion(q):
@@ -173,15 +161,6 @@ def main():
     try:
         us_stream.filter(locations=all_sites, async=True)
         while us_stream.running and us_listener.is_running():
-            #if len(reply_tweets) > 10:
-                #with connect_db() as con:
-                    #with con.cursor() as cur:
-                        #statuses_100 = reply_tweets[0:100]
-                        #reply_tweets = reply_tweets[100:]
-                        #statuses_100 = [st for st in statuses_100]
-                        #reply_objects = api.statuses_lookup(statuses_100)
-                        #record_tweets(reply_objects, cur, con)
-                    #con.commit()
             time.sleep(0.1)
     finally:
         us_stream.disconnect()
