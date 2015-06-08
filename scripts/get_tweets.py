@@ -13,31 +13,25 @@ import multiprocessing
 from multiprocessing.managers import SyncManager
 import signal
 import contextlib
-from twitter_api_func import get_api
 import logging
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.DEBUG)
 import psycopg2 as mdb
-
+from twitter_api_func import get_api
+from get_users import add_user_to_db
+from shared_utilities import normalize_text, connect_db
 
 bounding_boxes = { 'usa': (-125.6791025,25.4180700649,-66.885417,
                            49.3284551525) }
-
+user_table = "users"
 
 all_sites = list(itertools.chain.from_iterable(
     k for k in bounding_boxes.itervalues()))
 
-def connect_db():
-    con = mdb.connect("dbname=tweets user=patrick")
-    assert con is not None
-    return con
 
 def mgr_init():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-def normalize_text(text):
-    blank_these = re.compile(r"(')+")
-    space_these = re.compile(r"(\s+)")
-    return space_these.sub(" ", blank_these.sub("", text))
+
 
 def translate_date(date):
     """ NOT USED
@@ -53,7 +47,7 @@ def translate_date(date):
 tweets = []
 #reply_tweets = []
 
-def record_tweets(statuses, cur):
+def record_tweets(statuses, cur, con):
     cur.execute("SELECT tweet_id FROM tweets")
     tweet_ids = set(zip(*cur.fetchall())[0])
     statuses = [st for st in statuses if st.id_str not in tweet_ids]
@@ -64,10 +58,10 @@ def record_tweets(statuses, cur):
     for id_str in set(new_ids):
         status = [st for st in statuses if st.id_str == id_str][0]
         status_dict[id_str] = status
-    statuses = status_dict.itervalues()
+    
     
     query = (u"INSERT INTO tweets (tweet_id, text, created_at,"
-            u"user_id, language, lat, long, in_reply_to_tweet_id) VALUES ") + \
+            u"user_id, language, long, lat, in_reply_to_tweet_id) VALUES ") + \
             u", ".join([u"('{}','{}','{}','{}','{}','{}','{}','{}')".format(
             tw.id_str,
             normalize_text(tw.text),
@@ -76,11 +70,22 @@ def record_tweets(statuses, cur):
             tw.lang,
             tw.coordinates['coordinates'][0],
             tw.coordinates['coordinates'][1],
-            tw.in_reply_to_tweet_id) for tw in statuses])
+            tw.in_reply_to_tweet_id) for tw in status_dict.itervalues()])
     logging.debug(query)
     cur.execute(query)
-
+    con.commit()
     
+    # add users to database
+    for tw in status_dict.itervalues():
+        try:
+            logging.debug("Adding user {}".format(tw.user.id_str))
+            add_user_to_db(tw.user, cur)
+        except mdb.IntegrityError:
+            logging.warning("User already in db")
+            logging.debug("Detail: ", exc_info=True)
+            con.rollback()
+        con.commit()
+
 
 def ingest_tweet(status, con):
     global tweets
@@ -95,7 +100,7 @@ def ingest_tweet(status, con):
             #reply_tweets.append(status)
 
         if len(tweets) > 40:
-            record_tweets(tweets, cur)
+            record_tweets(tweets, cur, con)
             tweets = []
     con.commit()
     
@@ -175,7 +180,7 @@ def main():
                         #reply_tweets = reply_tweets[100:]
                         #statuses_100 = [st for st in statuses_100]
                         #reply_objects = api.statuses_lookup(statuses_100)
-                        #record_tweets(reply_objects, cur)
+                        #record_tweets(reply_objects, cur, con)
                     #con.commit()
             time.sleep(0.1)
     finally:
