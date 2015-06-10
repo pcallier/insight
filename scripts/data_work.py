@@ -92,8 +92,8 @@ def lda_authors(con):
         vectorizer = xtxt.CountVectorizer(tokenizer=lambda x: x.split(), 
                              vocabulary=vocab, binary=True)
         terms = vectorizer.fit_transform(doc_series.values)
-        logging.debug(doc_series[0])
-        logging.debug([vocab[i] for i in terms[0] if terms[0][i] != 0])
+        #logging.debug(doc_series[0])
+        #logging.debug([vocab[i] for i in terms[0] if terms[0][i] != 0])
         logging.debug(terms.shape)
         
 if __name__ == "__main__":
