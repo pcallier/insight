@@ -62,7 +62,7 @@ def get_vocab(docs, n=5000):
     #join docs
     docs_txt = u'\n'.join(docs)
     doc_tokens = docs_txt.split()
-    return np.ndarray(Counter(doc_tokens).most_common(n))
+    return np.array(zip(*Counter(doc_tokens).most_common(n)))[0]
 
  
     
