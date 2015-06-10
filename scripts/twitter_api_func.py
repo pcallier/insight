@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """twitter_api_func.py
 
-Has Twitter API functionality in it, what luck.
+Has Twitter API functionality in it, what luck. get_api() returns a 
+tweepy api object
 """
 
 import tweepy
@@ -9,7 +10,8 @@ import codecs
 
 
 def get_api(app_key=None, app_secret=None, access_key=None, access_secret=None, *args, **kwargs):
-    
+    """Return a tweepy API object using supplied keys and secrets or 
+    looking for them in pwd if None"""
     try:
         if app_key == None:
             with open("app.key", "r") as f:
