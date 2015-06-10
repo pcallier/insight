@@ -14,7 +14,7 @@ from multiprocessing.managers import SyncManager
 import signal
 import contextlib
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 import psycopg2 as mdb
 from twitter_api_func import get_api
 from get_users import add_user_to_db
