@@ -87,9 +87,10 @@ def get_corpus(con):
         # normalize (to lowercase)
         documents.tokens = normalize_tokens(map(lambda x: x.decode('utf-8'), documents.tokens))
         
-        random.seed(500)
-        user_sample = random.sample(documents.user_id, 2000)
-        documents = documents[documents.user_id.isin(user_sample)]
+        #sample users
+        #random.seed(500)
+        #user_sample = random.sample(documents.user_id, 2000)
+        #documents = documents[documents.user_id.isin(user_sample)]
         #documents.tokens = documents.tokens.dropna().map(lambda x: x.decode('utf-8'))
         doc_series = documents.groupby('user_id').apply(concat_tokens)
         
@@ -112,7 +113,7 @@ def lda_authors(doc_array):
     model = lda.LDA(n_topics=40, n_iter=2000, random_state=1)
     model.fit(terms)
     return model, vocab
-        
+
 def display_lda(model, vocab, n_top_words = 8, n_top_topics=3):
     topic_word = model.topic_word_
     # loop over fitted probabilities for vocab items in each topic
@@ -127,8 +128,6 @@ def display_lda(model, vocab, n_top_words = 8, n_top_topics=3):
         for k in xrange(0, n_top_topics):
             print np.argsort(doc_dist)[-k]
             print vocab[np.argsort(model.topic_word_[np.argsort(doc_dist)[-k]])][:-n_top_words:-1]
-        if i > 10:
-            break
         
         
 def doctopic_to_features(con, corpus, model):
