@@ -50,7 +50,7 @@ def add_geocodes(con,
                 logging.debug(place)
                 logging.debug(googeo.format_string)
                 logging.debug("Geocoding {}".format(place))
-                geocodes = googeo.geocode(place,timeout=5)
+                geocodes = googeo.geocode(place,timeout=7)
                 if geocodes == None:
                     logging.warning("Location not found")
                     cur.execute(("INSERT INTO {0} ({1}, {2}, {3}) "
