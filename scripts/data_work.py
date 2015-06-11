@@ -17,6 +17,12 @@ from nltk.corpus import stopwords
 import shared_utilities as shdb
 import ark_twokenize_py as ark
 import sklearn.feature_extraction.text as xtxt
+from gensim.models.ldamodel import LdaModel
+from gensim import corpora, similarities
+
+stop_punct = [ ":", '"', "'", ",", ".", "!", "-", "(", ")",
+               u"—", u"…", "@", u"❤", "im", "&", "$", "%", "[", "]",
+               ";", "+", "~", "...", "..", "?", "(@" ]
 
 def tokenize_tweets(con, tbl="tweets", id_col="tweet_id", 
                     src_col="text", dest_col="tokens"):
@@ -56,7 +62,7 @@ def tokenize_and_add(cur, tweet_id, tweet_text, tbl, id_col, col):
         tweet_id))
 
 def normalize_tokens(tokens):
-    """Placeholder for token normalization fn, not yet implemented"""
+    """"""
     tokens = map(unicode.lower, tokens)
     # get rid of URLs
     tokens = [re.sub(ark.url, "~url~", x, re.UNICODE) for x in tokens]
@@ -72,7 +78,7 @@ def get_vocab(docs, n=5000):
 
  
 
-def get_corpus(con):
+def get_corpus(con=shdb.connect_db()):
     def concat_tokens(tkns):
         try:
             return u'\n'.join(tkns.tokens.where(tkns.tokens.notnull(),u"").tolist())
@@ -100,6 +106,8 @@ def get_corpus(con):
 def lda_authors(doc_array):
     """Do LDA on db, with authors as documents. For now, output 
     some version of results to stdout"""
+    
+    raise Exception("Don't use this")
     
     vocab = get_vocab(doc_array, 5000)
     # use NLTK stopwords
@@ -150,8 +158,25 @@ def doctopic_to_features(con, corpus, model):
                 " WHERE user_id='{}'".format(feature_matrix[doc_row_i, 0])
             cur.execute(query)
             con.commit()
+            
+def remove_stop_words(tokens, stop_list=stopwords.words('english') + stop_punct):
+    return [tkn for tkn in tokens if tkn not in stop_list]
     
+def full_tokenize(txt):
+    return remove_stop_words(normalize_tokens(ark.tokenize(txt)))
+
+def do_lda(corpus_strings, min_freq = 10):
+    #tokenized = [ark.tokenize(tw.decode('utf-8')) for tw in corpus_strings]
+    #normalized = [normalize_tokens(tkns) for tkns in tokenized]
+    censored = [remove_stop_words(tokens.split()) for tokens in corpus_strings]
+    corpus_string = u'\n'.join([u' '.join(censored_doc) for censored_doc in censored])
+    doccounts = Counter(corpus_string.split())
+    doccounts = dict([(i, doccounts[i]) for i in doccounts.iterkeys() if doccounts[i] > min_freq])
+    dictionary = corpora.Dictionary(censored)
     
+    corpus = [dictionary.doc2bow(text) for text in censored]
+    lda = LdaModel(corpus, num_topics = 10, id2word = dictionary)
+    return dictionary, lda
         
 if __name__ == "__main__":
     tokenize_tweets(shdb.connect_db())
