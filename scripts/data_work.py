@@ -76,7 +76,6 @@ def get_vocab(docs, n=5000):
     doc_tokens = docs_txt.split()
     return np.array(zip(*Counter(doc_tokens).most_common(n)))[0]
 
- 
 
 def get_corpus(con=shdb.connect_db()):
     def concat_tokens(tkns):
@@ -140,22 +139,26 @@ def display_lda(model, vocab, n_top_words = 8, n_top_topics=3):
         
 def doctopic_to_features(con, corpus, model):
     """Create matrix of features for each document (author) with 
-    n columns wher en is the number of topics, valued as the probability 
+    n columns where n is the number of topics, valued as the probability 
     of that topic for that author (first column will be doc/author id).
     
-    Write that to the given connection"""
+    Write that to the given connection. Table users
+    must have fields topic_0 to topic_(n-1) where n = no. of topics - 1
     
-    feature_matrix = np.concatenate([np.array(corpus.index, ndmin=2).T, 
-                                     model.doc_topic_], axis=1)
+    Corpus must be a pandas series whose index is the user id"""
+    
+    #feature_matrix = np.concatenate([np.array(corpus.index, ndmin=2).T, 
+    #                                 model.doc_topic_], axis=1)
+    
     with con.cursor() as cur:
-        for doc_row_i in range(0,feature_matrix.shape[0]):
-            set_statements =  ', '.join( ["topic_{} = {}".format(x,y) 
-                for x,y in zip(range(0, feature_matrix.shape[1]), 
-                feature_matrix[doc_row_i,1:]) ])
+        for user_id, doc_fragment in zip(corpus.index, corpus):
+            topic_weights = model[model.id2word.doc2bow(doc_fragment.split())]
+            set_statements =  ', '.join(["topic_{} = {}".format(x,y) 
+                for x,y in topic_weights])
             #logging.debug(set_statements)
             query = "UPDATE users SET " + \
                 set_statements + \
-                " WHERE user_id='{}'".format(feature_matrix[doc_row_i, 0])
+                " WHERE user_id='{}'".format(user_id)
             cur.execute(query)
             con.commit()
             
