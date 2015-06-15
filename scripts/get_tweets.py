@@ -21,7 +21,9 @@ from get_users import add_user_to_db
 from shared_utilities import normalize_text, connect_db
 
 bounding_boxes = { 'usa': (-125.6791025,25.4180700649,-66.885417,
-                           49.3284551525) }
+                           49.3284551525),
+                    'la': ( -119.578941, 32.799580, -114.130814, 35.809120),
+                    'nyc': (-74.2589, 40.4774, -73.7004, 40.9176)}
 user_table = "users"
 
 all_sites = list(itertools.chain.from_iterable(
