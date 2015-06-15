@@ -7,13 +7,12 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 import random
 import re
+import codecs
 from collections import Counter
 import psycopg2 as mdb
 import numpy as np
 import pandas as pd
-import lda
 from nltk.corpus import stopwords
-#import twitter_api_func as twapi
 import shared_utilities as shdb
 import ark_twokenize_py as ark
 import sklearn.feature_extraction.text as xtxt
@@ -165,7 +164,7 @@ def doctopic_to_features(con, corpus, model):
 def remove_stop_words(tokens, stop_list=stopwords.words('english') + stop_punct):
     return [tkn for tkn in tokens if tkn not in stop_list]
     
-def full_tokenize(txt):
+def tokenize_normalize_stop(txt):
     return remove_stop_words(normalize_tokens(ark.tokenize(txt)))
 
 def do_lda(corpus_strings, min_freq = 10):
@@ -180,6 +179,54 @@ def do_lda(corpus_strings, min_freq = 10):
     corpus = [dictionary.doc2bow(text) for text in censored]
     lda = LdaModel(corpus, num_topics = 10, id2word = dictionary)
     return dictionary, lda
+ 
+def load_vectors(tokens, vector_path="glove.twitter.27B.25d.txt"):
+    """load only the word vectors associated with tokens,
+    return a dict"""
+    tokens = set(tokens)
+    vector_dict = {}
+    for vector_line in codecs.open(vector_path, "r", "utf-8"):
+        if len(tokens) == 0:
+            break
+        #logging.debug(len(tokens))
+        #logging.debug(type(vector_line))
+        vector_elements = vector_line.split()
+        #logging.debug(vector_elements)
+        try: 
+            if vector_elements[0] in tokens:
+                vector_dict[vector_elements[0]] = [float(x) for x in vector_elements[1:]]
+                tokens.remove(vector_elements[0])
+        except IndexError:
+            continue
+    return vector_dict
+    
+def gloveize_doc(text, dict):
+    tokens = normalize_tokens(ark.tokenize(text.decode('utf-8')))
+    vectors = [dict.get(token, None) for token in set(tokens)]
+    return [v for v in vectors if v is not None]
+    
+def gloveize_tweets(vector_dict):
+    num_features= 25
+    con = shdb.connect_db()
+    with con.cursor() as cur:
+        cur.execute("SELECT tweet_id, text FROM tweets")
+        twdf = pd.DataFrame(cur.fetchall(), columns=['tweet_id','text'])
+        for index, row in twdf.iterrows():
+            features = gloveize_doc(row.text, vector_dict)
+            if len(features) == 0:
+                features = [[0] * num_features]
+            features = [np.sum(vec) for vec in zip(*features)]
+            #logging.debug(features)
+            setstmt = u"UPDATE tweets SET ( " +  u', '.join(["glove_{}".format(x) for x in range(0,num_features)]) + \
+            ") = (" + ', '.join([u"{}".format(y) for y in features]) + ")"  + \
+            " WHERE tweet_id = '{}'".format(row.tweet_id) 
+            #logging.debug(setstmt)
+            cur.execute(setstmt)
+            con.commit()
+        
+    con.close()
+    return twdf
+     
         
 if __name__ == "__main__":
     tokenize_tweets(shdb.connect_db())
