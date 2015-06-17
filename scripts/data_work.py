@@ -229,4 +229,5 @@ def gloveize_tweets(vector_dict):
      
         
 if __name__ == "__main__":
-    tokenize_tweets(shdb.connect_db())
+    if sys.argv[1] == "tokenize":
+        tokenize_tweets(shdb.connect_db())
