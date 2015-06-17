@@ -7,6 +7,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 import re
 import time
+import datetime
 import tweepy
 import psycopg2 as mdb
 from twitter_api_func import get_api
@@ -100,10 +101,55 @@ def update_user_place(user, cur):
     cur.execute(query)
                         
 
+def get_last_tweets(con, api):
+    """Connect to twitter and get date of last tweet for each user"""
+    # get user ids
+    with con.cursor() as cur:
+        cur.execute("SELECT user_id FROM users WHERE last_tweet_at is NULL")
+        user_ids = zip(*cur.fetchall())[0]
+    
+    while len(user_ids) > 0:
+        cur_users = user_ids[:100]
+        try:
+            user_objs = api.lookup_users(cur_users)
+            def getdate(user):
+                if getattr(user, 'status', None):
+                    return user.status.created_at
+                else:
+                    return '2000-01-01 12:00:00'
+            last_tweet_at = { user.id_str : getdate(user) for user 
+                                in user_objs }
+        except tweepy.TweepError as e:
+            # no matches at all
+            print dir(e)
+            print e.args
+            print e.message
+            try:
+                if e.message[0]['code'] == 17:
+                    last_tweet_at = { uid : '2001-01-01 12:00:00' 
+                                        for uid in cur_users }
+            except:
+                try:
+                    if e.message.find("HTTPSConnectionPool") != -1:
+                        continue
+                except:
+                    print e
+                raise
+                
+        
+        with con.cursor() as cur:
+            for user_id, tw_date in last_tweet_at.iteritems():
+                cur.execute(("UPDATE users SET last_tweet_at = '{}' "
+                "WHERE user_id = '{}'").format(tw_date, user_id))
+        con.commit()
+        user_ids = user_ids[100:]
 
-                     
 if __name__ == "__main__":
-    with connect_db() as con:
-        update_or_add_users(list(set(get_missing_users(con))), get_api(), con)
+    if sys.argv[1] == 'getmissing':
+        with connect_db() as con:
+            update_or_add_users(list(set(get_missing_users(con))), get_api(), con)
+    elif sys.argv[1] == 'getlasttweet':
+        with connect_db() as con:
+            get_last_tweets(con, get_api(wait_on_rate_limit=True))
     
     #    fill_in_field(get_api(), con)
