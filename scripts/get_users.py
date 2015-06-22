@@ -101,6 +101,77 @@ def update_user_place(user, cur):
     cur.execute(query)
                         
 
+
+def get_user_name_created_at_and_pic(con, api):
+    """Connect to twitter and get screen name and profile image for user,
+    store in DB. """
+    # get user ids
+    with con.cursor() as cur:
+        #cur.execute("SELECT user_id FROM users WHERE screen_name IS NULL OR profile_pic_url is NULL OR created_at IS NULL")
+        cur.execute("SELECT user_id FROM users WHERE name ~ '[0-9]{4,}'")
+        #cur.execute("SELECT user_id FROM users")
+        user_ids = zip(*cur.fetchall())[0]
+    
+    while len(user_ids) > 0:
+        cur_users = user_ids[:100]
+        try:
+            user_objs = api.lookup_users(cur_users)
+        except tweepy.TweepError as e:
+            # no matches
+            if e.args[0][0]['code'] == 17:
+                user_ids = user_ids[100:]
+                continue
+            print e.message
+            print e.args
+            raise
+        pics = { user.id_str : getattr(user, 'profile_image_url', None) for user 
+                                in user_objs }
+        names = { user.id_str : getattr(user, 'screen_name', None) for user 
+                            in user_objs }
+        realnames = { user.id_str : getattr(user, 'name', None) for user in user_objs }
+        created_at = { user.id_str : getattr(user, 'created_at', None) for user 
+                            in user_objs }
+        # add to db where necessary. just use keys from pics (UGLY programming)
+        with con.cursor() as cur:
+            for user_id in [ user.id_str for user in user_objs ]:
+                try:
+                    if pics[user_id]:
+                        #logging.warning(pics[user_id])
+                        query = u"UPDATE users SET profile_pic_url='{}' WHERE user_id='{}'".format(
+                        pics[user_id], user_id)
+                    #cur.execute(query)
+                    #con.commit()
+                except mdb.IntegrityError:
+                    logging.warning("Blech", exc_info=True)
+                try:
+                    if names[user_id]:
+                        query = u"UPDATE users SET screen_name='{}' WHERE user_id='{}'".format(
+                            names[user_id], user_id)
+                        #cur.execute(query)
+                        #con.commit()
+                except mdb.IntegrityError:
+                    logging.warning("Blech is my sn", exc_info=True)
+                try:
+                    if created_at[user_id]:
+                        query = u"UPDATE users SET created_at='{}' WHERE user_id='{}'".format(
+                            created_at[user_id], user_id)
+                        #cur.execute(query)
+                        #con.commit()
+                except mdb.IntegrityError:
+                    logging.warning("Blech is my birthday", exc_info=True)
+                try:
+                    if realnames[user_id]:
+                        query = u"UPDATE users SET name=$blahh${}$blahh$ WHERE user_id='{}'".format(
+                            realnames[user_id], user_id)
+                        cur.execute(query)
+                        con.commit()
+                except mdb.IntegrityError:
+                    logging.warning("Blech is my naame", exc_info=True)                
+
+        user_ids = user_ids[100:]
+ 
+
+
 def get_last_tweets(con, api):
     """Connect to twitter and get date of last tweet for each user"""
     # get user ids
@@ -151,5 +222,9 @@ if __name__ == "__main__":
     elif sys.argv[1] == 'getlasttweet':
         with connect_db() as con:
             get_last_tweets(con, get_api(wait_on_rate_limit=True))
+    elif sys.argv[1] == 'getprofileinfo':
+        with connect_db() as con:
+            get_user_name_created_at_and_pic(con, get_api(wait_on_rate_limit=True))
+            
     
     #    fill_in_field(get_api(), con)

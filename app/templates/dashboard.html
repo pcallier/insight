@@ -8,7 +8,7 @@
    <meta name="author" content="">
    <link rel="icon" href="../../favicon.ico">
 
-   <title>Starter Template for Bootstrap</title>
+   <title>Dashboard - Canary churn alert</title>
 
    <!-- Bootstrap core CSS -->
    <link href="../static/css/bootstrap.min.css" rel="stylesheet">
@@ -41,11 +41,12 @@
            <span class="icon-bar"></span>
            <span class="icon-bar"></span>
          </button>
-         <a class="navbar-brand" href="#">fly-far</a>
+         <a class="navbar-brand" href="#">canary</a>
        </div>
        <div class="collapse navbar-collapse">
          <ul class="nav navbar-nav">
            <li class="active"><a href="#">Home</a></li>
+           <li><a href="https://docs.google.com/presentation/d/1JWIvDIAjT7s-fxDtP6VgJZbUaPODxSC9FB4LO6wDJ9E/present">Slides</a></li>
            <li><a href="#about">About</a></li>
            <li><a href="#contact">Contact</a></li>
          </ul>
@@ -56,28 +57,56 @@
 <br><br>
 
 
-   <div class="container">
+   <div class="container" style="max-width:950px;">
         <div class="starter-template">
             <h1>canary</h1>
-            <!--p class="lead">Project description!</p-->
+            <p class="lead">The churn early warning system for Twitter</p>
 
         </div>
  
- 
-        <div>
-            Map
-        </div>
-        
-        <div>
-            <table>
-            {% for user in users %}
-                <tr><td><img src="{{user.profile_image_url}}"</td>
-                <td>{{user.name}}<br />{{user.screen_name}}</td></tr>
-            {% endfor %}
-            </table>
-        </div>
-        
 
+ 
+        <div id="left-side-panel" style="float: left; max-width:300px;">
+
+            
+            <div style="max-width: 275px;">
+               <h3>Selected users likely to stop tweeting</h3>
+                {% for user in users %}
+                    <div style="max-width: 250px; min-height: 75px;">
+                        <span style="float: left;"><a href="/user/{{user.screen_name}}"><img src="{{user.profile_image_url}}" /></a></span>
+                        <span style="float: right; min-width:190px;"><a href="/user/{{user.screen_name}}"><b>{{user.name}}</b><br />@{{user.screen_name}}</a></span>
+                    </div>
+                {% endfor %}
+                
+            </div>
+
+        </div>
+        <div id="right-side-panel" style="float: right; max-width:450px;">
+            
+            <div>
+                <h4>Predict whether a Twitter user will stop tweeting in the next 3 months:</h4>
+                <div>
+                    <form action="/user" method="GET">
+                    <div>Twitter screen name</div>
+                    <input name="screen_name" id="screen_name_box" />
+                    </form>
+                </div>
+                <div style="margin-top:100px;">
+                <img src="../static/map_tweets_all.png" width="400px" />
+                </div>
+            </div>
+            <!--<div><h3>Time on service</h3>
+            <img src="../static/time_on_service_all.png" width="500px" />
+            </div>
+            
+            <div><h3>Followers</h3>
+            <img src="../static/followers_all.png" width="500px" />
+            </div>
+            
+            <div><h3>Friends count</h3>
+            <img src="../static/friends_all.png" width="500px" />
+            </div>-->
+        </div>
 
    </div><!-- /.container -->
 

@@ -8,13 +8,13 @@
    <meta name="author" content="">
    <link rel="icon" href="../../favicon.ico">
 
-   <title>Starter Template for Bootstrap</title>
+   <title>User view - Canary churn alert</title>
 
    <!-- Bootstrap core CSS -->
    <link href="../static/css/bootstrap.min.css" rel="stylesheet">
 
    <!-- Custom styles for this template -->
-   <link href="starter-template.css" rel="stylesheet">
+   <link href="../static/css/starter-template.css" rel="stylesheet">
 
    <!-- Just for debugging purposes. Don't actually copy these 2 lines! -->
    <!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
@@ -41,11 +41,12 @@
            <span class="icon-bar"></span>
            <span class="icon-bar"></span>
          </button>
-         <a class="navbar-brand" href="#">fly-far</a>
+         <a class="navbar-brand" href="/">canary</a>
        </div>
        <div class="collapse navbar-collapse">
          <ul class="nav navbar-nav">
            <li class="active"><a href="#">Home</a></li>
+           <li><a href="https://docs.google.com/presentation/d/1JWIvDIAjT7s-fxDtP6VgJZbUaPODxSC9FB4LO6wDJ9E/present">Slides</a></li>
            <li><a href="#about">About</a></li>
            <li><a href="#contact">Contact</a></li>
          </ul>
@@ -57,34 +58,56 @@
 
 
    <div class="container">
-     <div class="starter-template">
-       <h1>Are they traveling?</h1>
-       <!--p class="lead">Project description!</p-->
+        <div class="starter-template">
+            <h1>canary</h1>
+            <p class="lead">The churn early warning system for Twitter</p>
+
+        </div>
+ 
+    {% if error_txt %}
+    <div style="font-size: x-large; color:red;">
+    {{error_txt}}
+    </div>
+    {% else %}
+      <div style="max-width: 350px;">
+         <span style="float: left; "><img style=" max-height: 200px; max-width:160px;" src="{{user.profile_image_url}}" width="96" /></span>
+         <span style="float: right;"><h2>{{twitter_name}}</h2>
+         <h3>@{{screen_name}}</h3></span>
+     </div>
+    
+    <div>
+     <div style="float: left; max-width: 600px;">
+     <h2>@{{screen_name}}'s Twitter feed</h2>
+     <table>
+     <th></th>
+    {% for tweet in tweet_list %}
+    
+    <tr><td>{{tweet.text}}</td><td>{{tweet.created_at}}</td></tr>
+    
+    {% endfor %}
+     
+     </table>
      </div>
 
-   <h2>{% if screen_name %} {{screen_name}} {% endif %}</h2>
-   {% if error_txt %}
-       <span style="text-color: 'red';">{{error_txt}}</span>
-   {% else %}
-       <table class="table table-hover">
-       {% if tweets %}
-       {% for tw in tweets %}
-       <tr><td>{{tw}}</td></tr>
-       {% endfor %}
-       {% endif %}
-       
-       </table>
-       
-       <!--The prognostication -->
-       I think that <b>{{screen_name}}</b> is <b>{% if on_road==True %}
-       on the road
-       {% else %}
-       at home
-       {% endif %}
-       </b>
-   
-   {% endif %}
 
+    <div style="float: right;">
+        <div style="font-size:x-large;">
+        {{twitter_name}} is 
+        {% if not will_churn %} <b>not</b> likely {% else %}  <b>likely</b> {% endif %}  to leave the service in 3 mos.
+        </div>
+
+        <div >
+            <table>
+            <th></th>
+            <tr><td>{{user.age}} since user creation</td><td> </td></tr>
+            <tr><td>{{user.followers_count}} followers</td><td> </td></tr>
+            <tr><td>Following {{user.friends_count}} users</td><td> </td></tr>
+            </table>
+        </div>
+    </div>
+    </div>
+    </div>
+    {% endif %}
    <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
 
    <script src="../static/js/bootstrap.min.js"></script>
