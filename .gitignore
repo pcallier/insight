@@ -1,2 +1,4 @@
-scripts/*.secret
+*.secret
+*.key
+*.pem
 *.pyc
